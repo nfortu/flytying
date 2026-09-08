@@ -15,6 +15,8 @@ export interface FlyDetailState {
   error?: string;
   savingVariant: boolean;
   variantError?: string;
+  savingMaterials: boolean;
+  materialsError?: string;
 }
 
 export const initialFlyDetailState: FlyDetailState = {
@@ -24,6 +26,7 @@ export const initialFlyDetailState: FlyDetailState = {
   variants: [],
   loading: false,
   savingVariant: false,
+  savingMaterials: false,
 };
 
 // ---- Actions ---------------------------------------------------------------
@@ -41,7 +44,10 @@ export type FlyDetailAction =
     }
   | { type: "flyDetail/variantSaving" }
   | { type: "flyDetail/variantError"; error: string }
-  | { type: "flyDetail/variantAdded"; variant: FlyVariant };
+  | { type: "flyDetail/variantAdded"; variant: FlyVariant }
+  | { type: "flyDetail/materialsSaving" }
+  | { type: "flyDetail/materialsError"; error: string }
+  | { type: "flyDetail/materialsUpdated"; fly: Fly };
 
 // ---- Reducer ---------------------------------------------------------------
 
@@ -72,6 +78,12 @@ export function flyDetailReducer(state: FlyDetailState, action: FlyDetailAction)
         savingVariant: false,
         variants: [...state.variants, action.variant],
       };
+    case "flyDetail/materialsSaving":
+      return { ...state, savingMaterials: true, materialsError: undefined };
+    case "flyDetail/materialsError":
+      return { ...state, savingMaterials: false, materialsError: action.error };
+    case "flyDetail/materialsUpdated":
+      return { ...state, savingMaterials: false, fly: action.fly };
     default:
       return state;
   }
@@ -117,6 +129,34 @@ export const addVariant =
       dispatch({
         type: "flyDetail/variantError",
         error: err instanceof Error ? err.message : "Could not save variant",
+      });
+      throw err;
+    }
+  };
+
+export const updateFlyMaterials =
+  (materialIds: number[]): Thunk<AppState, AppAction, Promise<void>> =>
+  async (dispatch, getState) => {
+    const { fly } = getState().flyDetail;
+    if (!fly) return;
+    dispatch({ type: "flyDetail/materialsSaving" });
+    try {
+      const updated = await api<Fly>(`/flies/${fly.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          name: fly.name,
+          categoryId: fly.categoryId,
+          hookModel: fly.hookModel,
+          hookSize: fly.hookSize,
+          pictures: fly.pictures,
+          materialIds,
+        }),
+      });
+      dispatch({ type: "flyDetail/materialsUpdated", fly: updated });
+    } catch (err) {
+      dispatch({
+        type: "flyDetail/materialsError",
+        error: err instanceof Error ? err.message : "Could not update materials",
       });
       throw err;
     }

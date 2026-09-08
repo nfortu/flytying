@@ -1,11 +1,66 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import type { FlyVariant } from "@flytying/shared";
+import type { Fly, FlyVariant, Material } from "@flytying/shared";
 import { useDispatch, useSelector } from "../../store/index.js";
-import { addVariant, loadFlyDetail, type NewVariantInput } from "./state.js";
+import { addVariant, loadFlyDetail, updateFlyMaterials, type NewVariantInput } from "./state.js";
 
 const field =
   "w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none";
+
+const iconButton = "rounded-md p-1 hover:bg-slate-100";
+
+function PlusIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path
+        fillRule="evenodd"
+        d="M10 5a.75.75 0 0 1 .75.75v3.5h3.5a.75.75 0 0 1 0 1.5h-3.5v3.5a.75.75 0 0 1-1.5 0v-3.5h-3.5a.75.75 0 0 1 0-1.5h3.5v-3.5A.75.75 0 0 1 10 5Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function PencilIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
+      <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+    </svg>
+  );
+}
+
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path
+        fillRule="evenodd"
+        d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path
+        fillRule="evenodd"
+        d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+    </svg>
+  );
+}
 
 function AddVariantForm({ flyId, materialIds }: { flyId: number; materialIds: number[] }) {
   const dispatch = useDispatch();
@@ -140,6 +195,221 @@ function VariantCard({ variant, materialName }: { variant: FlyVariant; materialN
   );
 }
 
+function MaterialRow({
+  fly,
+  material,
+  materials,
+  materialCategoryName,
+  canEdit,
+  savingMaterials,
+  onSave,
+}: {
+  fly: Fly;
+  material: Material;
+  materials: Material[];
+  materialCategoryName: (id: number) => string;
+  canEdit: boolean;
+  savingMaterials: boolean;
+  onSave: (materialIds: number[]) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState<number | "">(material.id);
+
+  const choices = materials.filter((m) => m.id === material.id || !fly.materialIds.includes(m.id));
+
+  const startEdit = () => {
+    setValue(material.id);
+    setEditing(true);
+  };
+
+  const confirm = async () => {
+    if (value === "" || value === material.id) {
+      setEditing(false);
+      return;
+    }
+    await onSave(fly.materialIds.map((id) => (id === material.id ? Number(value) : id)));
+    setEditing(false);
+  };
+
+  const remove = () => onSave(fly.materialIds.filter((id) => id !== material.id));
+
+  return (
+    <li className="flex items-center justify-between gap-2 rounded-md bg-white px-4 py-2 text-sm shadow-sm">
+      {editing ? (
+        <>
+          <select className={`${field} mr-2`} value={value} onChange={(e) => setValue(Number(e.target.value) || "")}>
+            {choices.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              onClick={confirm}
+              disabled={savingMaterials}
+              aria-label="Save material"
+              className={`${iconButton} text-emerald-700 disabled:opacity-50`}
+            >
+              <CheckIcon className="h-4 w-4" />
+            </button>
+            <button onClick={() => setEditing(false)} aria-label="Cancel edit" className={`${iconButton} text-slate-400`}>
+              <XIcon className="h-4 w-4" />
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <span>
+            <span className="font-medium text-slate-800">{material.name}</span>{" "}
+            <span className="text-slate-500">— {materialCategoryName(material.categoryId)}</span>
+          </span>
+          {canEdit && (
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                onClick={startEdit}
+                aria-label={`Edit ${material.name}`}
+                className={`${iconButton} text-slate-500 hover:text-slate-700`}
+              >
+                <PencilIcon className="h-4 w-4" />
+              </button>
+              <button
+                onClick={remove}
+                disabled={savingMaterials}
+                aria-label={`Remove ${material.name}`}
+                className={`${iconButton} text-slate-500 hover:text-red-600 disabled:opacity-50`}
+              >
+                <TrashIcon className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </li>
+  );
+}
+
+function AddMaterialRow({
+  availableMaterials,
+  materialCategoryName,
+  savingMaterials,
+  onAdd,
+  onCancel,
+}: {
+  availableMaterials: Material[];
+  materialCategoryName: (id: number) => string;
+  savingMaterials: boolean;
+  onAdd: (materialId: number) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState<number | "">("");
+
+  const confirm = async () => {
+    if (value === "") return;
+    await onAdd(Number(value));
+  };
+
+  return (
+    <li className="flex items-center justify-between gap-2 rounded-md bg-white px-4 py-2 text-sm shadow-sm">
+      <select className={`${field} mr-2`} value={value} onChange={(e) => setValue(Number(e.target.value) || "")}>
+        <option value="">Select a material…</option>
+        {availableMaterials.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.name} — {materialCategoryName(m.categoryId)}
+          </option>
+        ))}
+      </select>
+      <div className="flex shrink-0 items-center gap-1">
+        <button
+          onClick={confirm}
+          disabled={savingMaterials || value === ""}
+          aria-label="Save material"
+          className={`${iconButton} text-emerald-700 disabled:opacity-50`}
+        >
+          <CheckIcon className="h-4 w-4" />
+        </button>
+        <button onClick={onCancel} aria-label="Cancel add" className={`${iconButton} text-slate-400`}>
+          <XIcon className="h-4 w-4" />
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function MaterialsSection({
+  fly,
+  materials,
+  materialCategoryName,
+  canEdit,
+}: {
+  fly: Fly;
+  materials: Material[];
+  materialCategoryName: (id: number) => string;
+  canEdit: boolean;
+}) {
+  const dispatch = useDispatch();
+  const savingMaterials = useSelector((s) => s.flyDetail.savingMaterials);
+  const materialsError = useSelector((s) => s.flyDetail.materialsError);
+  const [adding, setAdding] = useState(false);
+
+  const flyMaterials = materials.filter((m) => fly.materialIds.includes(m.id));
+  const availableToAdd = materials.filter((m) => !fly.materialIds.includes(m.id));
+
+  const save = (materialIds: number[]) => dispatch(updateFlyMaterials(materialIds));
+
+  const addMaterial = async (materialId: number) => {
+    await save([...fly.materialIds, materialId]);
+    setAdding(false);
+  };
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-slate-800">Materials</h3>
+        {canEdit && (
+          <button
+            onClick={() => setAdding(true)}
+            aria-label="Add material"
+            className="rounded-full p-1.5 text-emerald-700 hover:bg-emerald-50"
+          >
+            <PlusIcon className="h-5 w-5" />
+          </button>
+        )}
+      </div>
+
+      {materialsError && <p className="text-sm text-red-600">{materialsError}</p>}
+
+      {flyMaterials.length === 0 && !adding ? (
+        <p className="text-slate-500">No materials recorded for this pattern.</p>
+      ) : (
+        <ul className="space-y-2">
+          {flyMaterials.map((m) => (
+            <MaterialRow
+              key={m.id}
+              fly={fly}
+              material={m}
+              materials={materials}
+              materialCategoryName={materialCategoryName}
+              canEdit={canEdit}
+              savingMaterials={savingMaterials}
+              onSave={save}
+            />
+          ))}
+          {adding && (
+            <AddMaterialRow
+              availableMaterials={availableToAdd}
+              materialCategoryName={materialCategoryName}
+              savingMaterials={savingMaterials}
+              onAdd={addMaterial}
+              onCancel={() => setAdding(false)}
+            />
+          )}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export function FlyDetailView() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -147,6 +417,7 @@ export function FlyDetailView() {
   const { fly, categories, materials, materialCategories, variants, loading, error } = useSelector(
     (s) => s.flyDetail,
   );
+  const user = useSelector((s) => s.auth.user);
 
   const flyId = Number(id);
 
@@ -173,7 +444,7 @@ export function FlyDetailView() {
   if (error) return <p className="text-red-600">{error}</p>;
   if (!fly) return null;
 
-  const flyMaterials = materials.filter((m) => fly.materialIds.includes(m.id));
+  const canEdit = !!user && (user.role === "admin" || fly.ownerId === user.id);
 
   return (
     <div className="space-y-8">
@@ -200,21 +471,7 @@ export function FlyDetailView() {
         </div>
       </div>
 
-      <section className="space-y-3">
-        <h3 className="text-lg font-semibold text-slate-800">Materials</h3>
-        {flyMaterials.length === 0 ? (
-          <p className="text-slate-500">No materials recorded for this pattern.</p>
-        ) : (
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {flyMaterials.map((m) => (
-              <li key={m.id} className="rounded-md bg-white px-4 py-2 text-sm shadow-sm">
-                <span className="font-medium text-slate-800">{m.name}</span>{" "}
-                <span className="text-slate-500">— {materialCategoryName(m.categoryId)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <MaterialsSection fly={fly} materials={materials} materialCategoryName={materialCategoryName} canEdit={canEdit} />
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
