@@ -1,0 +1,22 @@
+services:
+  claude-code:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: claude-code
+    environment:
+      - SSH_AUTH_SOCK=/run/ssh-agent.sock
+      - GH_TOKEN=${GH_TOKEN}
+    working_dir: /workspace
+    volumes:
+      # Your project code — edits Claude makes here show up on your host too
+      - .:/workspace
+      # Persist Claude Code's login/config across container rebuilds.
+      # Reuses your host login if you've already run `claude` locally;
+      # otherwise it'll prompt you to log in once inside the container.
+      - ~/.claude:/root/.claude
+      - ~/.claude.json:/root/.claude.json
+      # Mount the host's SSH agent socket into the container
+      - ${SSH_AUTH_SOCK}:/run/ssh-agent.sock
+    stdin_open: true   # keep STDIN open for interactive prompts
+    tty: true           # allocate a pseudo-TTY so the CLI renders properly

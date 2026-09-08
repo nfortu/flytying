@@ -1,0 +1,10 @@
+.git
+.DS_Store
+node_modules
+*.tsbuildinfo
+*.log
+*.pem
+
+# env files with secrets (template is safe to keep)
+.env*
+!.env.example
