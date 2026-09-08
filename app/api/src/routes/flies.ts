@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "../db.js";
 import { toFly } from "../mappers.js";
 import { asyncHandler, HttpError, requireAuth } from "../middleware.js";
+import { flyVariantsRouter } from "./flyVariants.js";
 
 export const fliesRouter = Router();
 
@@ -39,6 +40,21 @@ fliesRouter.get(
     res.json(result.rows.map(toFly));
   }),
 );
+
+/** A single fly by id (detail screen). */
+fliesRouter.get(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const result = await db.execute({
+      sql: `SELECT ${FLY_COLUMNS} FROM flies WHERE id = ?`,
+      args: [Number(req.params.id)],
+    });
+    if (result.rows.length === 0) throw new HttpError(404, "Fly not found");
+    res.json(toFly(result.rows[0]));
+  }),
+);
+
+fliesRouter.use("/:id/variants", flyVariantsRouter);
 
 fliesRouter.post(
   "/",

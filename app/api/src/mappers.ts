@@ -1,5 +1,13 @@
 import type { Row } from "@libsql/client";
-import type { Brand, Fly, FlyCategory, Hook, Material, MaterialCategory } from "@flytying/shared";
+import type {
+  Brand,
+  Fly,
+  FlyCategory,
+  FlyVariant,
+  Hook,
+  Material,
+  MaterialCategory,
+} from "@flytying/shared";
 
 function num(v: unknown): number {
   return Number(v);
@@ -59,4 +67,16 @@ export const toFly = (r: Row): Fly => ({
   pictures: jsonArray<string>(r.pictures),
   materialIds: jsonArray<number>(r.material_ids),
   ownerId: r.owner_id == null ? null : num(r.owner_id),
+});
+
+/** Maps a fly_variants row plus its fly_variant_materials rows (already filtered to this variant). */
+export const toFlyVariant = (r: Row, substitutionRows: Row[]): FlyVariant => ({
+  id: num(r.id),
+  flyId: num(r.fly_id),
+  name: str(r.name),
+  pictures: jsonArray<string>(r.pictures),
+  substitutions: substitutionRows.map((s) => ({
+    baseMaterialId: num(s.base_material_id),
+    replacementMaterialId: num(s.replacement_material_id),
+  })),
 });

@@ -67,6 +67,18 @@ export async function initSchema(): Promise<void> {
         material_ids TEXT NOT NULL DEFAULT '[]',
         owner_id INTEGER REFERENCES users(id)
       )`,
+      `CREATE TABLE IF NOT EXISTS fly_variants (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fly_id INTEGER NOT NULL REFERENCES flies(id),
+        name TEXT NOT NULL,
+        pictures TEXT NOT NULL DEFAULT '[]'
+      )`,
+      `CREATE TABLE IF NOT EXISTS fly_variant_materials (
+        variant_id INTEGER NOT NULL REFERENCES fly_variants(id),
+        base_material_id INTEGER NOT NULL REFERENCES materials(id),
+        replacement_material_id INTEGER NOT NULL REFERENCES materials(id),
+        PRIMARY KEY (variant_id, base_material_id)
+      )`,
     ],
     "write",
   );

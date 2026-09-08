@@ -63,6 +63,25 @@ export interface Fly {
   ownerId: number | null;
 }
 
+/** A material substitution: swaps one of the parent Fly's materials for another in a variant. */
+export interface FlyVariantMaterial {
+  baseMaterialId: number;
+  replacementMaterialId: number;
+}
+
+/**
+ * A color/material variation of a Fly (e.g. a Woolly Bugger tied in Olive vs Black), sharing
+ * the parent Fly's category, hook and pictures unless overridden. Only records how its
+ * materials differ from the base Fly.
+ */
+export interface FlyVariant {
+  id: number;
+  flyId: number;
+  name: string;
+  pictures: string[];
+  substitutions: FlyVariantMaterial[];
+}
+
 // ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------
