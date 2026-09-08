@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import type { Fly } from "@flytying/shared";
 import { useDispatch, useSelector } from "../../store/index.js";
@@ -30,17 +30,85 @@ function FlyCard({ fly, categoryName }: { fly: Fly; categoryName: string }) {
   );
 }
 
-function CreateFlyForm() {
+const ACCEPTED_PICTURE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_PICTURES = 5;
+
+function PicturesField({ pictures, onChange }: { pictures: File[]; onChange: (pictures: File[]) => void }) {
+  const [error, setError] = useState<string>();
+  const previews = useMemo(() => pictures.map((f) => URL.createObjectURL(f)), [pictures]);
+
+  useEffect(() => {
+    return () => previews.forEach((url) => URL.revokeObjectURL(url));
+  }, [previews]);
+
+  const addFiles = (e: ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (selected.some((f) => !ACCEPTED_PICTURE_TYPES.includes(f.type))) {
+      setError("Pictures must be JPG, PNG, or WEBP images");
+      return;
+    }
+    const combined = [...pictures, ...selected];
+    setError(combined.length > MAX_PICTURES ? `You can upload up to ${MAX_PICTURES} pictures` : undefined);
+    onChange(combined.slice(0, MAX_PICTURES));
+  };
+
+  const removeAt = (index: number) => {
+    setError(undefined);
+    onChange(pictures.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="space-y-2">
+      {previews.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {previews.map((url, i) => (
+            <div key={url} className="relative h-16 w-16">
+              <img src={url} alt="" className="h-16 w-16 rounded-md object-cover" />
+              <button
+                type="button"
+                onClick={() => removeAt(i)}
+                aria-label="Remove picture"
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-xs text-white hover:bg-slate-900"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <input
+        type="file"
+        accept={ACCEPTED_PICTURE_TYPES.join(",")}
+        multiple
+        disabled={pictures.length >= MAX_PICTURES}
+        onChange={addFiles}
+        className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-700 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-600 disabled:opacity-50"
+      />
+      <p className="text-xs text-slate-500">Up to {MAX_PICTURES} pictures — JPG, PNG, or WEBP.</p>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+function CreateFlyForm({ onClose }: { onClose: () => void }) {
   const dispatch = useDispatch();
   const categories = useSelector((s) => s.catalog.categories);
-  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState<number | "">("");
   const [hookModel, setHookModel] = useState("");
   const [hookSize, setHookSize] = useState("");
-  const [picture, setPicture] = useState("");
+  const [pictures, setPictures] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -54,15 +122,15 @@ function CreateFlyForm() {
           categoryId: Number(categoryId),
           hookModel,
           hookSize,
-          pictures: picture.trim() ? [picture.trim()] : [],
+          pictures,
         }),
       );
       setName("");
       setCategoryId("");
       setHookModel("");
       setHookSize("");
-      setPicture("");
-      setOpen(false);
+      setPictures([]);
+      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save fly");
     } finally {
@@ -72,50 +140,59 @@ function CreateFlyForm() {
 
   const field = "w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none";
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600"
-      >
-        + New pattern
-      </button>
-    );
-  }
-
   return (
-    <form onSubmit={submit} className="w-full max-w-md space-y-3 rounded-xl bg-white p-5 shadow-sm">
-      <h3 className="font-semibold text-slate-800">New fly pattern</h3>
-      <input className={field} placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-      <select className={field} value={categoryId} onChange={(e) => setCategoryId(Number(e.target.value) || "")}>
-        <option value="">Select a category…</option>
-        {categories.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-      <div className="flex gap-2">
-        <input className={field} placeholder="Hook model" value={hookModel} onChange={(e) => setHookModel(e.target.value)} />
-        <input className={field} placeholder="Size (e.g. 12-16)" value={hookSize} onChange={(e) => setHookSize(e.target.value)} />
-      </div>
-      <input className={field} placeholder="Picture URL (optional)" value={picture} onChange={(e) => setPicture(e.target.value)} />
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="flex gap-2">
-        <button type="submit" disabled={busy} className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50">
-          {busy ? "Saving…" : "Save"}
-        </button>
-        <button type="button" onClick={() => setOpen(false)} className="rounded-md bg-slate-200 px-4 py-2 text-sm font-medium">
-          Cancel
-        </button>
-      </div>
-    </form>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+      onClick={onClose}
+    >
+      <form
+        onSubmit={submit}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md space-y-3 rounded-xl bg-white p-5 shadow-lg"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-slate-800">New fly pattern</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          >
+            ✕
+          </button>
+        </div>
+        <input className={field} placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+        <select className={field} value={categoryId} onChange={(e) => setCategoryId(Number(e.target.value) || "")}>
+          <option value="">Select a category…</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <div className="flex gap-2">
+          <input className={field} placeholder="Hook model" value={hookModel} onChange={(e) => setHookModel(e.target.value)} />
+          <input className={field} placeholder="Size (e.g. 12-16)" value={hookSize} onChange={(e) => setHookSize(e.target.value)} />
+        </div>
+        <PicturesField pictures={pictures} onChange={setPictures} />
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <div className="flex gap-2">
+          <button type="submit" disabled={busy} className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50">
+            {busy ? "Saving…" : "Save"}
+          </button>
+          <button type="button" onClick={onClose} className="rounded-md bg-slate-200 px-4 py-2 text-sm font-medium">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
 export function CatalogView() {
   const dispatch = useDispatch();
   const { flies, myFlies, categories, view, loading, error } = useSelector((s) => s.catalog);
+  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
     void dispatch(loadCatalog());
@@ -146,8 +223,15 @@ export function CatalogView() {
           {tab("all", "All patterns")}
           {tab("mine", "My patterns")}
         </div>
-        <CreateFlyForm />
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600"
+        >
+          + New pattern
+        </button>
       </div>
+
+      {createOpen && <CreateFlyForm onClose={() => setCreateOpen(false)} />}
 
       {loading && <p className="text-slate-500">Loading flies…</p>}
       {error && <p className="text-red-600">{error}</p>}

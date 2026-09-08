@@ -88,15 +88,19 @@ export interface NewFlyInput {
   categoryId: number;
   hookModel: string;
   hookSize: string;
-  pictures: string[];
+  pictures: File[];
 }
 
 export const createFly =
   (input: NewFlyInput): Thunk<AppState, AppAction, Promise<void>> =>
   async (dispatch) => {
-    const fly = await api<Fly>("/flies", {
-      method: "POST",
-      body: JSON.stringify({ ...input, materialIds: [] }),
-    });
+    const body = new FormData();
+    body.set("name", input.name);
+    body.set("categoryId", String(input.categoryId));
+    body.set("hookModel", input.hookModel);
+    body.set("hookSize", input.hookSize);
+    for (const picture of input.pictures) body.append("pictures", picture);
+
+    const fly = await api<Fly>("/flies", { method: "POST", body });
     dispatch({ type: "catalog/flyAdded", fly });
   };

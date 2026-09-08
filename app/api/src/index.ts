@@ -3,6 +3,7 @@ import cors from "cors";
 import { config } from "./config.js";
 import { initSchema } from "./db.js";
 import { errorHandler } from "./middleware.js";
+import { UPLOADS_DIR } from "./uploads.js";
 import { authRouter } from "./routes/auth.js";
 import { brandsRouter } from "./routes/brands.js";
 import { flyCategoriesRouter } from "./routes/flyCategories.js";
@@ -19,6 +20,8 @@ async function main() {
   app.use(express.json());
 
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+
+  app.use("/api/uploads", express.static(UPLOADS_DIR));
 
   app.use("/api/auth", authRouter);
   app.use("/api/brands", brandsRouter);
