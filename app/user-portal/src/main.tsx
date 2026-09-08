@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import { StoreProvider } from "./store/react.js";
 import { store } from "./store/index.js";
 import { restoreSession } from "./features/auth/state.js";
@@ -12,7 +13,9 @@ store.dispatch(restoreSession());
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <StoreProvider store={store}>
-      <App />
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
     </StoreProvider>
   </StrictMode>,
 );

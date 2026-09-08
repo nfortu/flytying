@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import type { Fly } from "@flytying/shared";
 import { useDispatch, useSelector } from "../../store/index.js";
 import { createFly, loadCatalog, setView, type CatalogView as View } from "./state.js";
 
 function FlyCard({ fly, categoryName }: { fly: Fly; categoryName: string }) {
   return (
-    <article className="overflow-hidden rounded-xl bg-white shadow-sm">
+    <Link
+      to={`/flies/${fly.id}`}
+      className="block overflow-hidden rounded-xl bg-white shadow-sm transition hover:shadow-md"
+    >
       {fly.pictures[0] ? (
         <img src={fly.pictures[0]} alt={fly.name} className="h-40 w-full object-cover" />
       ) : (
@@ -22,7 +26,7 @@ function FlyCard({ fly, categoryName }: { fly: Fly; categoryName: string }) {
           </p>
         )}
       </div>
-    </article>
+    </Link>
   );
 }
 
