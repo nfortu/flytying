@@ -12,19 +12,27 @@ import {
   type ReferenceAction,
   type ReferenceState,
 } from "../features/reference/state.js";
+import {
+  materialsReducer,
+  initialMaterialsState,
+  type MaterialsAction,
+  type MaterialsState,
+} from "../features/materials/state.js";
 
 // ---- Root model ------------------------------------------------------------
 
 export interface AppState {
   auth: AuthState;
   reference: ReferenceState;
+  materials: MaterialsState;
 }
 
-export type AppAction = (AuthAction | ReferenceAction) & Action;
+export type AppAction = (AuthAction | ReferenceAction | MaterialsAction) & Action;
 
 const initialState: AppState = {
   auth: initialAuthState,
   reference: initialReferenceState,
+  materials: initialMaterialsState,
 };
 
 // Combine slice reducers. Each slice ignores actions it doesn't recognise.
@@ -32,6 +40,7 @@ function rootReducer(state: AppState, action: AppAction): AppState {
   return {
     auth: authReducer(state.auth, action as AuthAction),
     reference: referenceReducer(state.reference, action as ReferenceAction),
+    materials: materialsReducer(state.materials, action as MaterialsAction),
   };
 }
 
