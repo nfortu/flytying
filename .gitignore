@@ -18,8 +18,8 @@ lerna-debug.log*
 dist/
 dist-ssr/
 
-# Runtime data
-app/server/data/
+# Runtime data (local libSQL database)
+app/api/data/
 
 # OS files
 .DS_Store

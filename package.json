@@ -1,9 +1,20 @@
 {
   "name": "specable2-workspace",
   "private": true,
+  "workspaces": [
+    "app/shared",
+    "app/api",
+    "app/user-portal",
+    "app/admin-portal"
+  ],
   "scripts": {
     "docker:build": "docker compose build",
     "docker:claude": "docker compose run --rm claude-code",
-    "docker:shell": "docker compose run --rm claude-code bash"
+    "docker:shell": "docker compose run --rm claude-code bash",
+    "dev:api": "npm run dev --workspace app/api",
+    "dev:user": "npm run dev --workspace app/user-portal",
+    "dev:admin": "npm run dev --workspace app/admin-portal",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   }
 }
