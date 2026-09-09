@@ -14,7 +14,7 @@ const MIME_EXTENSIONS: Record<string, string> = {
   "image/webp": ".webp",
 };
 
-const MAX_PICTURES = 5;
+export const MAX_PICTURES = 5;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 const storage = multer.diskStorage({

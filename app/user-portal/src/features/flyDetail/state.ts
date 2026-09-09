@@ -17,6 +17,10 @@ export interface FlyDetailState {
   variantError?: string;
   savingMaterials: boolean;
   materialsError?: string;
+  savingEdit: boolean;
+  editError?: string;
+  deleting: boolean;
+  deleteError?: string;
 }
 
 export const initialFlyDetailState: FlyDetailState = {
@@ -27,6 +31,8 @@ export const initialFlyDetailState: FlyDetailState = {
   loading: false,
   savingVariant: false,
   savingMaterials: false,
+  savingEdit: false,
+  deleting: false,
 };
 
 // ---- Actions ---------------------------------------------------------------
@@ -47,7 +53,13 @@ export type FlyDetailAction =
   | { type: "flyDetail/variantAdded"; variant: FlyVariant }
   | { type: "flyDetail/materialsSaving" }
   | { type: "flyDetail/materialsError"; error: string }
-  | { type: "flyDetail/materialsUpdated"; fly: Fly };
+  | { type: "flyDetail/materialsUpdated"; fly: Fly }
+  | { type: "flyDetail/editSaving" }
+  | { type: "flyDetail/editError"; error: string }
+  | { type: "flyDetail/edited"; fly: Fly }
+  | { type: "flyDetail/deleting" }
+  | { type: "flyDetail/deleteError"; error: string }
+  | { type: "flyDetail/deleted" };
 
 // ---- Reducer ---------------------------------------------------------------
 
@@ -84,6 +96,18 @@ export function flyDetailReducer(state: FlyDetailState, action: FlyDetailAction)
       return { ...state, savingMaterials: false, materialsError: action.error };
     case "flyDetail/materialsUpdated":
       return { ...state, savingMaterials: false, fly: action.fly };
+    case "flyDetail/editSaving":
+      return { ...state, savingEdit: true, editError: undefined };
+    case "flyDetail/editError":
+      return { ...state, savingEdit: false, editError: action.error };
+    case "flyDetail/edited":
+      return { ...state, savingEdit: false, fly: action.fly };
+    case "flyDetail/deleting":
+      return { ...state, deleting: true, deleteError: undefined };
+    case "flyDetail/deleteError":
+      return { ...state, deleting: false, deleteError: action.error };
+    case "flyDetail/deleted":
+      return { ...state, deleting: false };
     default:
       return state;
   }
@@ -134,6 +158,28 @@ export const addVariant =
     }
   };
 
+// PUT /flies/:id takes multipart/form-data (new pictures arrive as uploaded
+// files, same as POST); existingPictures/materialIds ride along as JSON strings.
+function flyFormData(fields: {
+  name: string;
+  categoryId: number;
+  hookModel: string;
+  hookSize: string;
+  existingPictures: string[];
+  materialIds: number[];
+  newPictures?: File[];
+}): FormData {
+  const body = new FormData();
+  body.set("name", fields.name);
+  body.set("categoryId", String(fields.categoryId));
+  body.set("hookModel", fields.hookModel);
+  body.set("hookSize", fields.hookSize);
+  body.set("existingPictures", JSON.stringify(fields.existingPictures));
+  body.set("materialIds", JSON.stringify(fields.materialIds));
+  for (const picture of fields.newPictures ?? []) body.append("pictures", picture);
+  return body;
+}
+
 export const updateFlyMaterials =
   (materialIds: number[]): Thunk<AppState, AppAction, Promise<void>> =>
   async (dispatch, getState) => {
@@ -143,20 +189,59 @@ export const updateFlyMaterials =
     try {
       const updated = await api<Fly>(`/flies/${fly.id}`, {
         method: "PUT",
-        body: JSON.stringify({
-          name: fly.name,
-          categoryId: fly.categoryId,
-          hookModel: fly.hookModel,
-          hookSize: fly.hookSize,
-          pictures: fly.pictures,
-          materialIds,
-        }),
+        body: flyFormData({ ...fly, existingPictures: fly.pictures, materialIds }),
       });
       dispatch({ type: "flyDetail/materialsUpdated", fly: updated });
     } catch (err) {
       dispatch({
         type: "flyDetail/materialsError",
         error: err instanceof Error ? err.message : "Could not update materials",
+      });
+      throw err;
+    }
+  };
+
+export interface EditFlyInput {
+  name: string;
+  categoryId: number;
+  hookModel: string;
+  hookSize: string;
+  existingPictures: string[];
+  newPictures: File[];
+}
+
+export const updateFly =
+  (input: EditFlyInput): Thunk<AppState, AppAction, Promise<void>> =>
+  async (dispatch, getState) => {
+    const { fly } = getState().flyDetail;
+    if (!fly) return;
+    dispatch({ type: "flyDetail/editSaving" });
+    try {
+      const updated = await api<Fly>(`/flies/${fly.id}`, {
+        method: "PUT",
+        body: flyFormData({ ...input, materialIds: fly.materialIds, newPictures: input.newPictures }),
+      });
+      dispatch({ type: "flyDetail/edited", fly: updated });
+    } catch (err) {
+      dispatch({
+        type: "flyDetail/editError",
+        error: err instanceof Error ? err.message : "Could not update fly",
+      });
+      throw err;
+    }
+  };
+
+export const deleteFly =
+  (id: number): Thunk<AppState, AppAction, Promise<void>> =>
+  async (dispatch) => {
+    dispatch({ type: "flyDetail/deleting" });
+    try {
+      await api<void>(`/flies/${id}`, { method: "DELETE" });
+      dispatch({ type: "flyDetail/deleted" });
+    } catch (err) {
+      dispatch({
+        type: "flyDetail/deleteError",
+        error: err instanceof Error ? err.message : "Could not delete fly",
       });
       throw err;
     }
