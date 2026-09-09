@@ -3,31 +3,44 @@ import { z } from "zod";
 import { db } from "../db.js";
 import { toFly } from "../mappers.js";
 import { asyncHandler, HttpError, requireAuth } from "../middleware.js";
-import { pictureUrlsFor, uploadPictures } from "../uploads.js";
+import { MAX_PICTURES, pictureUrlsFor, uploadPictures } from "../uploads.js";
 import { flyVariantsRouter } from "./flyVariants.js";
 
 export const fliesRouter = Router();
 
 const FLY_COLUMNS = "id, name, category_id, hook_model, hook_size, pictures, material_ids, owner_id";
 
-// Used by PUT, which still takes a JSON body; picture URLs there may be either
-// externally hosted (legacy) or one of our own /api/uploads/... paths.
-const bodySchema = z.object({
-  name: z.string().trim().min(1),
-  categoryId: z.number().int().positive(),
-  hookModel: z.string().trim().default(""),
-  hookSize: z.string().trim().default(""),
-  pictures: z.array(z.string().min(1)).default([]),
-  materialIds: z.array(z.number().int()).default([]),
-});
-
-// POST arrives as multipart/form-data (pictures are uploaded files), so fields
-// come through as strings that need coercing.
+// POST and PUT both arrive as multipart/form-data (pictures are uploaded
+// files), so fields come through as strings that need coercing.
 const createFormSchema = z.object({
   name: z.string().trim().min(1),
   categoryId: z.coerce.number().int().positive(),
   hookModel: z.string().trim().default(""),
   hookSize: z.string().trim().default(""),
+});
+
+function jsonArray<T extends z.ZodTypeAny>(item: T) {
+  return z
+    .string()
+    .default("[]")
+    .transform((raw, ctx) => {
+      try {
+        const parsed = JSON.parse(raw);
+        const result = z.array(item).safeParse(parsed);
+        if (!result.success) throw new Error();
+        return result.data;
+      } catch {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid JSON array" });
+        return z.NEVER;
+      }
+    });
+}
+
+// existingPictures may be externally hosted (legacy) or one of our own
+// /api/uploads/... paths; new uploads are appended via pictureUrlsFor.
+const updateFormSchema = createFormSchema.extend({
+  existingPictures: jsonArray(z.string().min(1)),
+  materialIds: jsonArray(z.number().int()),
 });
 
 fliesRouter.use(requireAuth);
@@ -96,13 +109,17 @@ async function assertOwnerOrAdmin(id: number, userId: number, isAdmin: boolean):
 
 fliesRouter.put(
   "/:id",
+  uploadPictures,
   asyncHandler(async (req, res) => {
-    const parsed = bodySchema.safeParse(req.body);
+    const parsed = updateFormSchema.safeParse(req.body);
     if (!parsed.success) throw new HttpError(400, "Invalid fly payload");
     const id = Number(req.params.id);
     await assertOwnerOrAdmin(id, req.user!.sub, req.user!.role === "admin");
 
-    const { name, categoryId, hookModel, hookSize, pictures, materialIds } = parsed.data;
+    const { name, categoryId, hookModel, hookSize, existingPictures, materialIds } = parsed.data;
+    const pictures = [...existingPictures, ...pictureUrlsFor(req)];
+    if (pictures.length > MAX_PICTURES) throw new HttpError(400, `You can upload at most ${MAX_PICTURES} pictures`);
+
     const result = await db.execute({
       sql: `UPDATE flies SET name = ?, category_id = ?, hook_model = ?, hook_size = ?, pictures = ?, material_ids = ?
             WHERE id = ?

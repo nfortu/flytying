@@ -1,8 +1,18 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import type { Fly, FlyVariant, Material } from "@flytying/shared";
+import type { Fly, FlyCategory, FlyVariant, Material } from "@flytying/shared";
+import { FlyIcon } from "../../components/FlyIcon.js";
+import { PicturesField } from "../../components/PicturesField.js";
 import { useDispatch, useSelector } from "../../store/index.js";
-import { addVariant, loadFlyDetail, updateFlyMaterials, type NewVariantInput } from "./state.js";
+import {
+  addVariant,
+  deleteFly,
+  loadFlyDetail,
+  updateFly,
+  updateFlyMaterials,
+  type EditFlyInput,
+  type NewVariantInput,
+} from "./state.js";
 
 const field =
   "w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none";
@@ -59,6 +69,166 @@ function XIcon({ className }: { className?: string }) {
     <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
       <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
     </svg>
+  );
+}
+
+function DeleteFlyDialog({
+  flyName,
+  deleting,
+  deleteError,
+  onConfirm,
+  onCancel,
+}: {
+  flyName: string;
+  deleting: boolean;
+  deleteError?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+      onClick={onCancel}
+    >
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="delete-fly-heading"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md space-y-3 rounded-xl bg-white p-5 shadow-lg"
+      >
+        <h3 id="delete-fly-heading" className="font-semibold text-slate-800">
+          Delete {flyName}?
+        </h3>
+        <p className="text-sm text-slate-600">
+          This will permanently remove this fly pattern, including its materials and variants. This cannot be undone.
+        </p>
+        {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md bg-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-300"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={deleting}
+            className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditFlyDialog({
+  fly,
+  categories,
+  saving,
+  editError,
+  onSave,
+  onClose,
+}: {
+  fly: Fly;
+  categories: FlyCategory[];
+  saving: boolean;
+  editError?: string;
+  onSave: (input: EditFlyInput) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(fly.name);
+  const [categoryId, setCategoryId] = useState<number | "">(fly.categoryId);
+  const [hookModel, setHookModel] = useState(fly.hookModel);
+  const [hookSize, setHookSize] = useState(fly.hookSize);
+  const [existingPictures, setExistingPictures] = useState<string[]>(fly.pictures);
+  const [newPictures, setNewPictures] = useState<File[]>([]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || categoryId === "") return;
+    try {
+      await onSave({ name, categoryId: Number(categoryId), hookModel, hookSize, existingPictures, newPictures });
+      onClose();
+    } catch {
+      // editError is already surfaced from state
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" onClick={onClose}>
+      <form
+        onSubmit={submit}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md space-y-3 rounded-xl bg-white p-5 shadow-lg"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-slate-800">Edit fly pattern</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          >
+            ✕
+          </button>
+        </div>
+        <input className={field} placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+        <select className={field} value={categoryId} onChange={(e) => setCategoryId(Number(e.target.value) || "")}>
+          <option value="">Select a category…</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <div className="flex gap-2">
+          <input
+            className={field}
+            placeholder="Hook model"
+            value={hookModel}
+            onChange={(e) => setHookModel(e.target.value)}
+          />
+          <input
+            className={field}
+            placeholder="Size (e.g. 12-16)"
+            value={hookSize}
+            onChange={(e) => setHookSize(e.target.value)}
+          />
+        </div>
+        <PicturesField
+          existingPictures={existingPictures}
+          onRemoveExisting={(i) => setExistingPictures((p) => p.filter((_, idx) => idx !== i))}
+          pictures={newPictures}
+          onChange={setNewPictures}
+        />
+        {editError && <p className="text-sm text-red-600">{editError}</p>}
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+          <button type="button" onClick={onClose} className="rounded-md bg-slate-200 px-4 py-2 text-sm font-medium">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -414,16 +584,40 @@ export function FlyDetailView() {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { fly, categories, materials, materialCategories, variants, loading, error } = useSelector(
-    (s) => s.flyDetail,
-  );
+  const {
+    fly,
+    categories,
+    materials,
+    materialCategories,
+    variants,
+    loading,
+    error,
+    deleting,
+    deleteError,
+    savingEdit,
+    editError,
+  } = useSelector((s) => s.flyDetail);
   const user = useSelector((s) => s.auth.user);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [editingOpen, setEditingOpen] = useState(false);
 
   const flyId = Number(id);
 
   useEffect(() => {
     if (Number.isFinite(flyId)) void dispatch(loadFlyDetail(flyId));
   }, [dispatch, flyId]);
+
+  const handleDelete = async () => {
+    if (!fly) return;
+    try {
+      await dispatch(deleteFly(fly.id));
+      navigate("/");
+    } catch {
+      // deleteError is already surfaced from state
+    }
+  };
+
+  const handleEdit = (input: EditFlyInput) => dispatch(updateFly(input));
 
   const categoryName = useMemo(() => {
     const map = new Map(categories.map((c) => [c.id, c.name]));
@@ -456,20 +650,61 @@ export function FlyDetailView() {
         {fly.pictures[0] ? (
           <img src={fly.pictures[0]} alt={fly.name} className="h-48 w-48 rounded-lg object-cover" />
         ) : (
-          <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-emerald-100 text-5xl text-emerald-700">
-            🪶
+          <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+            <FlyIcon className="h-24 w-36" />
           </div>
         )}
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-slate-800">{fly.name}</h2>
-          <p className="text-emerald-700">{categoryName(fly.categoryId)}</p>
-          {(fly.hookModel || fly.hookSize) && (
-            <p className="text-sm text-slate-500">
-              Hook: {fly.hookModel || "—"} {fly.hookSize && `(${fly.hookSize})`}
-            </p>
+        <div className="flex flex-1 items-start justify-between gap-2">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-slate-800">{fly.name}</h2>
+            <p className="text-emerald-700">{categoryName(fly.categoryId)}</p>
+            {(fly.hookModel || fly.hookSize) && (
+              <p className="text-sm text-slate-500">
+                Hook: {fly.hookModel || "—"} {fly.hookSize && `(${fly.hookSize})`}
+              </p>
+            )}
+          </div>
+          {canEdit && (
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                onClick={() => setEditingOpen(true)}
+                aria-label={`Edit ${fly.name}`}
+                className={`${iconButton} text-slate-400 hover:text-slate-600`}
+              >
+                <PencilIcon className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => setConfirmingDelete(true)}
+                aria-label={`Delete ${fly.name}`}
+                className={`${iconButton} text-slate-400 hover:text-red-600`}
+              >
+                <TrashIcon className="h-5 w-5" />
+              </button>
+            </div>
           )}
         </div>
       </div>
+
+      {editingOpen && (
+        <EditFlyDialog
+          fly={fly}
+          categories={categories}
+          saving={savingEdit}
+          editError={editError}
+          onSave={handleEdit}
+          onClose={() => setEditingOpen(false)}
+        />
+      )}
+
+      {confirmingDelete && (
+        <DeleteFlyDialog
+          flyName={fly.name}
+          deleting={deleting}
+          deleteError={deleteError}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmingDelete(false)}
+        />
+      )}
 
       <MaterialsSection fly={fly} materials={materials} materialCategoryName={materialCategoryName} canEdit={canEdit} />
 
