@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Fly, FlyCategory, FlyVariant, Material } from "@flytying/shared";
-import { FlyIcon } from "../../components/FlyIcon.js";
+import { PictureCarousel } from "../../components/PictureCarousel.js";
 import { PicturesField } from "../../components/PicturesField.js";
 import { useDispatch, useSelector } from "../../store/index.js";
 import {
@@ -647,13 +647,7 @@ export function FlyDetailView() {
       </button>
 
       <div className="flex flex-col gap-6 rounded-xl bg-white p-6 shadow-sm sm:flex-row">
-        {fly.pictures[0] ? (
-          <img src={fly.pictures[0]} alt={fly.name} className="h-48 w-48 rounded-lg object-cover" />
-        ) : (
-          <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-            <FlyIcon className="h-24 w-36" />
-          </div>
-        )}
+        <PictureCarousel pictures={fly.pictures} alt={fly.name} />
         <div className="flex flex-1 items-start justify-between gap-2">
           <div className="space-y-2">
             <h2 className="text-2xl font-bold text-slate-800">{fly.name}</h2>
