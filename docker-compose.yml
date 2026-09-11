@@ -3,14 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - GIT_USER_NAME=${GIT_USER_NAME}
-        - GIT_USER_EMAIL=${GIT_USER_EMAIL}
-        - GH_USER=${GH_USER}
-        - GH_TOKEN=${GH_TOKEN}
     container_name: claude-code
+    # Passed to the container at runtime; the entrypoint uses these to
+    # configure git, so the token never gets baked into an image layer.
     environment:
-      #- SSH_AUTH_SOCK=/run/ssh-agent.sock
       - GIT_USER_NAME=${GIT_USER_NAME}
       - GIT_USER_EMAIL=${GIT_USER_EMAIL}
       - GH_USER=${GH_USER}
@@ -24,7 +20,5 @@ services:
       # otherwise it'll prompt you to log in once inside the container.
       - ~/.claude:/root/.claude
       - ~/.claude.json:/root/.claude.json
-      # Mount the host's SSH agent socket into the container
-      # - ${SSH_AUTH_SOCK}:/run/ssh-agent.sock
     stdin_open: true   # keep STDIN open for interactive prompts
     tty: true           # allocate a pseudo-TTY so the CLI renders properly
