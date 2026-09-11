@@ -89,10 +89,10 @@ function CreateFlyForm({ onClose }: { onClose: () => void }) {
       <form
         onSubmit={submit}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md space-y-3 rounded-xl bg-white p-5 shadow-lg"
+        className="w-full max-w-xl space-y-4 rounded-xl bg-white p-8 shadow-lg"
       >
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-slate-800">New fly pattern</h3>
+          <h3 className="text-lg font-semibold text-slate-800">New fly pattern</h3>
           <button
             type="button"
             onClick={onClose}
@@ -111,7 +111,7 @@ function CreateFlyForm({ onClose }: { onClose: () => void }) {
             </option>
           ))}
         </select>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <input className={field} placeholder="Hook model" value={hookModel} onChange={(e) => setHookModel(e.target.value)} />
           <input className={field} placeholder="Size (e.g. 12-16)" value={hookSize} onChange={(e) => setHookSize(e.target.value)} />
         </div>
