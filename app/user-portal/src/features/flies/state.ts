@@ -7,15 +7,26 @@ import type { AppAction, AppState } from "../../store/index.js";
 
 export type CatalogView = "all" | "mine";
 
+/** How the catalog results are laid out. */
+export type CatalogLayout = "grid" | "list";
+
 /** Selected category filter; "all" shows every category. */
 export type CategoryFilter = number | "all";
+
+const LAYOUT_KEY = "flytying.user.catalogLayout";
+
+function readLayout(): CatalogLayout {
+  return localStorage.getItem(LAYOUT_KEY) === "list" ? "list" : "grid";
+}
 
 export interface CatalogState {
   flies: Fly[];
   myFlies: Fly[];
   categories: FlyCategory[];
   view: CatalogView;
+  layout: CatalogLayout;
   categoryFilter: CategoryFilter;
+  search: string;
   loading: boolean;
   error?: string;
 }
@@ -25,7 +36,9 @@ export const initialCatalogState: CatalogState = {
   myFlies: [],
   categories: [],
   view: "all",
+  layout: readLayout(),
   categoryFilter: "all",
+  search: "",
   loading: false,
 };
 
@@ -36,7 +49,9 @@ export type CatalogAction =
   | { type: "catalog/error"; error: string }
   | { type: "catalog/loaded"; flies: Fly[]; myFlies: Fly[]; categories: FlyCategory[] }
   | { type: "catalog/setView"; view: CatalogView }
+  | { type: "catalog/setLayout"; layout: CatalogLayout }
   | { type: "catalog/setCategoryFilter"; categoryFilter: CategoryFilter }
+  | { type: "catalog/setSearch"; search: string }
   | { type: "catalog/flyAdded"; fly: Fly };
 
 // ---- Reducer ---------------------------------------------------------------
@@ -57,8 +72,13 @@ export function catalogReducer(state: CatalogState, action: CatalogAction): Cata
       };
     case "catalog/setView":
       return { ...state, view: action.view };
+    case "catalog/setLayout":
+      localStorage.setItem(LAYOUT_KEY, action.layout);
+      return { ...state, layout: action.layout };
     case "catalog/setCategoryFilter":
       return { ...state, categoryFilter: action.categoryFilter };
+    case "catalog/setSearch":
+      return { ...state, search: action.search };
     case "catalog/flyAdded":
       return {
         ...state,
@@ -91,10 +111,20 @@ export const setView =
   (dispatch) =>
     dispatch({ type: "catalog/setView", view });
 
+export const setLayout =
+  (layout: CatalogLayout): Thunk<AppState, AppAction> =>
+  (dispatch) =>
+    dispatch({ type: "catalog/setLayout", layout });
+
 export const setCategoryFilter =
   (categoryFilter: CategoryFilter): Thunk<AppState, AppAction> =>
   (dispatch) =>
     dispatch({ type: "catalog/setCategoryFilter", categoryFilter });
+
+export const setSearch =
+  (search: string): Thunk<AppState, AppAction> =>
+  (dispatch) =>
+    dispatch({ type: "catalog/setSearch", search });
 
 export interface NewFlyInput {
   name: string;
