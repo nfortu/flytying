@@ -19,6 +19,15 @@ RUN mkdir -p -m 755 /etc/apt/keyrings \
     && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
 
+# Apply the git configuration during the build phase
+ARG GIT_USER_NAME
+ARG GIT_USER_EMAIL
+ARG GH_USER
+ARG GH_TOKEN
+RUN git config --global user.name "${GIT_USER_NAME}" && \
+    git config --global user.email "${GIT_USER_EMAIL}" && \
+    git config --global url."https://${GH_USER}:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+
 # Install the Claude Code CLI globally
 RUN npm install -g @anthropic-ai/claude-code
 
