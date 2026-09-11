@@ -22,7 +22,13 @@ RUN mkdir -p -m 755 /etc/apt/keyrings \
 # Install the Claude Code CLI globally
 RUN npm install -g @anthropic-ai/claude-code
 
+# Configure git at runtime (not build time) so the GH_TOKEN is never
+# written into an image layer. See docker-entrypoint.sh.
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 WORKDIR /workspace
 
 # Drop into an interactive Claude Code session by default
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["claude"]
