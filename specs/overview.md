@@ -6,10 +6,10 @@ FlyTying is an app for fly tying enthusiasts: keep track of the flies you need, 
 
 FlyTying is a modular platform made of two portals sharing one backend and database:
 
-- **User portal**: user-focused activities — browse the shared fly pattern library, author and manage your own fly patterns (recipes), and manage your material inventory. Requires authentication.
-- **Admin portal**: a separate portal for admin users — CRUD operations on catalog data: brands, fly types, material categories, hooks, and materials. Requires authentication with the admin role.
+- **User portal**: user-focused activities — browse the fly pattern library and author and manage your own fly patterns (recipes). Requires authentication. (A material-inventory feature is planned but not built — see [domain model](./domain-model.md#not-yet-implemented).)
+- **Admin portal**: a separate portal for admin users — CRUD operations on catalog data. The API supports brands, fly categories, material categories, hooks, and materials; the admin UI currently covers brands, fly categories, material categories, and materials (a hooks admin UI is not built yet). Requires authentication with the admin role.
 
-Both portals talk to the same REST API and database. Authentication is JWT-based: on login the server issues a signed JWT carrying the user's id and role, and the client sends it (as a bearer token) on subsequent requests. Access to user-owned data (a user's own flies, their inventory) is restricted to the user identified by the token; access to admin CRUD endpoints requires the admin role.
+Both portals talk to the same REST API and database. Authentication is JWT-based: on login the server issues a signed JWT carrying the user's id, email, and role, and the client sends it (as a bearer token) on subsequent requests. Every endpoint requires a valid token. Any authenticated user can read all catalog data and all flies; writing a fly is restricted to its owner (or an admin), and admin CRUD endpoints on catalog data require the admin role.
 
 # Web stack
 
@@ -23,4 +23,9 @@ Both portals talk to the same REST API and database. Authentication is JWT-based
 
 # Seed data
 
-The database is seeded with mock data so the app is usable end to end without manual setup: catalog data (brands, fly types, material categories, colors, hooks, materials), a handful of users (including at least one admin), and sample flies, variants, and inventories owned by those users.
+The seed script (`npm run seed --workspace app/api`) inserts the core reference
+data plus demo logins: brands, fly categories, material categories, and two
+users — an admin (`admin@flytying.dev`) and a regular user (`tyer@flytying.dev`).
+
+It does **not** yet seed colors, hooks, materials, or sample flies/variants, so
+those are created through the portals rather than preloaded.
