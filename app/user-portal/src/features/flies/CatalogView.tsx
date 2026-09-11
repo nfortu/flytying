@@ -4,7 +4,7 @@ import type { Fly } from "@flytying/shared";
 import { FlyIcon } from "../../components/FlyIcon.js";
 import { PicturesField } from "../../components/PicturesField.js";
 import { useDispatch, useSelector } from "../../store/index.js";
-import { createFly, loadCatalog, setView, type CatalogView as View } from "./state.js";
+import { createFly, loadCatalog, setCategoryFilter, setView, type CatalogView as View } from "./state.js";
 
 function FlyCard({ fly, categoryName }: { fly: Fly; categoryName: string }) {
   return (
@@ -132,7 +132,7 @@ function CreateFlyForm({ onClose }: { onClose: () => void }) {
 
 export function CatalogView() {
   const dispatch = useDispatch();
-  const { flies, myFlies, categories, view, loading, error } = useSelector((s) => s.catalog);
+  const { flies, myFlies, categories, view, categoryFilter, loading, error } = useSelector((s) => s.catalog);
   const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
@@ -144,7 +144,11 @@ export function CatalogView() {
     return (id: number) => map.get(id) ?? "Unknown";
   }, [categories]);
 
-  const shown = view === "all" ? flies : myFlies;
+  const base = view === "all" ? flies : myFlies;
+  const shown = useMemo(
+    () => (categoryFilter === "all" ? base : base.filter((f) => f.categoryId === categoryFilter)),
+    [base, categoryFilter],
+  );
 
   const tab = (v: View, label: string) => (
     <button
@@ -160,9 +164,26 @@ export function CatalogView() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex gap-2">
-          {tab("all", "All patterns")}
-          {tab("mine", "My patterns")}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex gap-2">
+            {tab("all", "All patterns")}
+            {tab("mine", "My patterns")}
+          </div>
+          <select
+            value={categoryFilter}
+            onChange={(e) =>
+              dispatch(setCategoryFilter(e.target.value === "all" ? "all" : Number(e.target.value)))
+            }
+            aria-label="Filter by category"
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 focus:border-emerald-500 focus:outline-none"
+          >
+            <option value="all">All categories</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
         <button
           onClick={() => setCreateOpen(true)}
@@ -179,7 +200,11 @@ export function CatalogView() {
 
       {!loading && !error && shown.length === 0 && (
         <p className="text-slate-500">
-          {view === "mine" ? "You haven't added any patterns yet." : "No patterns yet."}
+          {categoryFilter !== "all"
+            ? "No patterns in this category yet."
+            : view === "mine"
+              ? "You haven't added any patterns yet."
+              : "No patterns yet."}
         </p>
       )}
 

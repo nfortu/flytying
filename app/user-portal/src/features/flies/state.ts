@@ -7,11 +7,15 @@ import type { AppAction, AppState } from "../../store/index.js";
 
 export type CatalogView = "all" | "mine";
 
+/** Selected category filter; "all" shows every category. */
+export type CategoryFilter = number | "all";
+
 export interface CatalogState {
   flies: Fly[];
   myFlies: Fly[];
   categories: FlyCategory[];
   view: CatalogView;
+  categoryFilter: CategoryFilter;
   loading: boolean;
   error?: string;
 }
@@ -21,6 +25,7 @@ export const initialCatalogState: CatalogState = {
   myFlies: [],
   categories: [],
   view: "all",
+  categoryFilter: "all",
   loading: false,
 };
 
@@ -31,6 +36,7 @@ export type CatalogAction =
   | { type: "catalog/error"; error: string }
   | { type: "catalog/loaded"; flies: Fly[]; myFlies: Fly[]; categories: FlyCategory[] }
   | { type: "catalog/setView"; view: CatalogView }
+  | { type: "catalog/setCategoryFilter"; categoryFilter: CategoryFilter }
   | { type: "catalog/flyAdded"; fly: Fly };
 
 // ---- Reducer ---------------------------------------------------------------
@@ -51,6 +57,8 @@ export function catalogReducer(state: CatalogState, action: CatalogAction): Cata
       };
     case "catalog/setView":
       return { ...state, view: action.view };
+    case "catalog/setCategoryFilter":
+      return { ...state, categoryFilter: action.categoryFilter };
     case "catalog/flyAdded":
       return {
         ...state,
@@ -82,6 +90,11 @@ export const setView =
   (view: CatalogView): Thunk<AppState, AppAction> =>
   (dispatch) =>
     dispatch({ type: "catalog/setView", view });
+
+export const setCategoryFilter =
+  (categoryFilter: CategoryFilter): Thunk<AppState, AppAction> =>
+  (dispatch) =>
+    dispatch({ type: "catalog/setCategoryFilter", categoryFilter });
 
 export interface NewFlyInput {
   name: string;
