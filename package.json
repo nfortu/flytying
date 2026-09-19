@@ -1,5 +1,5 @@
 {
-  "name": "specable2-workspace",
+  "name": "flytying-workspace",
   "private": true,
   "workspaces": [
     "app/shared",
